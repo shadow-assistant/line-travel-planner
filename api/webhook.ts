@@ -1,18 +1,4 @@
-import { Client } from '@line/bot-sdk';
-import { createClient } from '@supabase/supabase-js';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-
-// 初始化 LINE Client
-const lineClient = new Client({
-  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN!,
-  channelSecret: process.env.LINE_CHANNEL_SECRET!
-});
-
-// 初始化 Supabase
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 export const config = {
   api: {
@@ -47,31 +33,60 @@ export default async function handler(
   }
 
   try {
+    // 懶惰載入 - 只有收到 POST 才初始化
+    const { Client } = await import('@line/bot-sdk');
+    const { createClient } = await import('@supabase/supabase-js');
+
+    // 檢查必要的環境變數
+    const lineChannelAccessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+    const lineChannelSecret = process.env.LINE_CHANNEL_SECRET;
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!lineChannelAccessToken || !lineChannelSecret) {
+      console.error('Missing LINE credentials');
+      return response.status(200).json({ error: 'LINE credentials not configured' });
+    }
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('Missing Supabase credentials');
+      return response.status(200).json({ error: 'Supabase credentials not configured' });
+    }
+
+    // 初始化客戶端
+    const lineClient = new Client({
+      channelAccessToken: lineChannelAccessToken,
+      channelSecret: lineChannelSecret
+    });
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
     const events = request.body.events || [];
     
     for (const event of events) {
-      await handleEvent(event);
+      await handleEvent(event, lineClient, supabase);
     }
 
     return response.status(200).json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error:', error);
-    return response.status(500).json({ error: 'Internal server error' });
+    // 返回 200 避免 LINE 不斷重試
+    return response.status(200).json({ error: error.message });
   }
 }
 
-async function handleEvent(event: any) {
+async function handleEvent(event: any, lineClient: any, supabase: any) {
   if (event.type === 'message' && event.message.type === 'text') {
-    await handleTextMessage(event);
+    await handleTextMessage(event, lineClient, supabase);
   } else if (event.type === 'join' || event.type === 'memberJoined') {
-    await handleGroupJoin(event);
+    await handleGroupJoin(event, lineClient, supabase);
   } else if (event.type === 'memberLeft') {
-    await handleGroupLeave(event);
+    await handleGroupLeave(event, supabase);
   }
 }
 
 // 處理文字訊息
-async function handleTextMessage(event: any) {
+async function handleTextMessage(event: any, lineClient: any, supabase: any) {
   const userId = event.source.userId;
   const groupId = event.source.groupId;
   const text = event.message.text;
@@ -138,7 +153,7 @@ ${liffUrl}`
 }
 
 // 處理加入群組
-async function handleGroupJoin(event: any) {
+async function handleGroupJoin(event: any, lineClient: any, supabase: any) {
   if (!event.replyToken) return;
   
   const groupId = event.source.groupId;
@@ -163,7 +178,7 @@ ${liffUrl}`
 }
 
 // 處理離開群組
-async function handleGroupLeave(event: any) {
+async function handleGroupLeave(event: any, supabase: any) {
   const groupId = event.source.groupId;
   console.log(`Left group: ${groupId}`);
 }
