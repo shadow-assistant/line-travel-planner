@@ -2,6 +2,7 @@
   "name": "line-travel-planner",
   "version": "1.0.0",
   "description": "LINE 旅遊規劃管理小工具",
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
