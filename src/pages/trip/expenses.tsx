@@ -43,12 +43,13 @@ export default function ExpensesPage() {
     notes: '',
   });
 
-  const gId = Array.isArray(groupId) ? groupId[0] : groupId;
+  const gId = Array.isArray(groupId) ? groupId[0] : (groupId || '');
 
   useEffect(() => {
-    if (gId) {
-      fetchExpenses(gId);
-      fetchSettlements(gId);
+    const id = Array.isArray(gId) ? gId[0] : gId;
+    if (id) {
+      fetchExpenses(id);
+      fetchSettlements(id);
     }
   }, [gId]);
 

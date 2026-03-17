@@ -30,11 +30,12 @@ export default function WishlistPage() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
 
-  const gId = Array.isArray(groupId) ? groupId[0] : groupId;
+  const gId = Array.isArray(groupId) ? groupId[0] : (groupId || '');
 
   useEffect(() => {
-    if (gId) {
-      fetchWishlist(gId);
+    const id = Array.isArray(gId) ? gId[0] : gId;
+    if (id) {
+      fetchWishlist(id);
     }
   }, [gId]);
 

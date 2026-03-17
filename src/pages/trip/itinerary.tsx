@@ -33,11 +33,12 @@ export default function ItineraryPage() {
   const [draggedItem, setDraggedItem] = useState<ItineraryItem | null>(null);
   const [editingItem, setEditingItem] = useState<ItineraryItem | null>(null);
 
-  const gId = Array.isArray(groupId) ? groupId[0] : groupId;
+  const gId = Array.isArray(groupId) ? groupId[0] : (groupId || '');
 
   useEffect(() => {
-    if (gId) {
-      fetchItineraries(gId);
+    const id = Array.isArray(gId) ? gId[0] : gId;
+    if (id) {
+      fetchItineraries(id);
     }
   }, [gId]);
 

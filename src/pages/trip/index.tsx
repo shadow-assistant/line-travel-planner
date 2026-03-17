@@ -20,11 +20,12 @@ export default function DashboardPage() {
   });
   const [loading, setLoading] = useState(true);
 
-  const gId = Array.isArray(groupId) ? groupId[0] : groupId;
+  const gId = Array.isArray(groupId) ? groupId[0] : (groupId || '');
 
   useEffect(() => {
-    if (gId) {
-      fetchDashboardData(gId);
+    const id = Array.isArray(gId) ? gId[0] : gId;
+    if (id) {
+      fetchDashboardData(id);
     }
   }, [gId]);
 
