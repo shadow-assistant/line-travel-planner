@@ -18,6 +18,8 @@ export default function TripsPage() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [gId, setGId] = useState<string>('');
   const [newTrip, setNewTrip] = useState({
     title: '',
     description: '',
@@ -26,22 +28,32 @@ export default function TripsPage() {
     end_date: '',
   });
 
-  const gId = Array.isArray(groupId) ? groupId[0] : (groupId || '');
-
   useEffect(() => {
-    const id = Array.isArray(gId) ? gId[0] : gId;
+    // 等待 router 準備好
+    if (!router.isReady) return;
+    
+    // 從 URL 或 localStorage 取得 groupId
+    const id = Array.isArray(groupId) ? groupId[0] : (groupId || (typeof window !== 'undefined' ? localStorage.getItem('currentGroupId') : null) || '');
+    
     if (id) {
+      setGId(id);
+      localStorage.setItem('currentGroupId', id);
       fetchTrips(id);
+    } else {
+      setError('請從 LINE 群組進入應用程式');
+      setLoading(false);
     }
-  }, [gId]);
+  }, [router.isReady, groupId]);
 
   const fetchTrips = async (id: string) => {
     try {
       const res = await fetch(`/api/itineraries?groupId=${id}`);
+      if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
       setTrips(data || []);
     } catch (err) {
       console.error(err);
+      setError('載入失敗，請稍後再試');
     } finally {
       setLoading(false);
     }
@@ -75,9 +87,7 @@ export default function TripsPage() {
     if (!confirm('確定要刪除這個行程嗎？')) return;
 
     try {
-      await fetch(`/api/itineraries?id=${tripId}`, {
-        method: 'DELETE',
-      });
+      await fetch(`/api/itineraries?id=${tripId}`, { method: 'DELETE' });
       fetchTrips(gId);
     } catch (err) {
       console.error(err);
@@ -96,6 +106,31 @@ export default function TripsPage() {
       text: s.text 
     };
   };
+
+  // 載入中
+  if (loading) {
+    return (
+      <Layout activeTab="trips" groupId={gId}>
+        <div style={styles.container}>
+          <div style={styles.loading}>載入中...</div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // 錯誤訊息
+  if (error) {
+    return (
+      <Layout activeTab="trips" groupId={gId}>
+        <div style={styles.container}>
+          <div style={styles.error}>
+            <p>{error}</p>
+            <p style={styles.hint}>請透過 LINE 群組的連結進入應用程式</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout activeTab="trips" groupId={gId}>
@@ -158,9 +193,7 @@ export default function TripsPage() {
 
         {/* 行程列表 */}
         <div style={styles.list}>
-          {loading ? (
-            <p style={styles.loading}>載入中...</p>
-          ) : trips.length === 0 ? (
+          {trips.length === 0 ? (
             <div style={styles.empty}>
               <span style={styles.emptyIcon}>🧳</span>
               <p>還沒有行程</p>
@@ -230,6 +263,22 @@ const styles: any = {
     display: 'flex',
     flexDirection: 'column',
     gap: '20px',
+  },
+  loading: {
+    textAlign: 'center',
+    padding: '40px',
+    color: '#666',
+  },
+  error: {
+    textAlign: 'center',
+    padding: '40px',
+    backgroundColor: '#fff',
+    borderRadius: '16px',
+  },
+  hint: {
+    fontSize: '14px',
+    color: '#999',
+    marginTop: '10px',
   },
   header: {
     textAlign: 'center',
@@ -314,11 +363,6 @@ const styles: any = {
     display: 'flex',
     flexDirection: 'column',
     gap: '16px',
-  },
-  loading: {
-    textAlign: 'center',
-    color: '#666',
-    padding: '40px',
   },
   empty: {
     textAlign: 'center',
