@@ -8,6 +8,9 @@ declare global {
   }
 }
 
+// 從環境變數取得 LIFF ID
+const LIFF_ID = process.env.NEXT_PUBLIC_LIFF_ID || '2000000000'; // 替换为你的 LIFF ID
+
 export default function LiffPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -23,8 +26,12 @@ export default function LiffPage() {
       // 等待 liff SDK 載入
       await loadLiffSdk();
 
+      if (!LIFF_ID || LIFF_ID === '2000000000') {
+        throw new Error('LIFF ID 未設定，請在 Vercel 設定 NEXT_PUBLIC_LIFF_ID 環境變數');
+      }
+
       await window.liff.init({
-        liffId: process.env.NEXT_PUBLIC_LIFF_ID!
+        liffId: LIFF_ID
       });
 
       if (!window.liff.isLoggedIn()) {
@@ -80,7 +87,7 @@ export default function LiffPage() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', fontFamily: 'system-ui, sans-serif' }}>
         <p>載入中...</p>
       </div>
     );
@@ -88,16 +95,29 @@ export default function LiffPage() {
 
   if (error) {
     return (
-      <div style={{ padding: '20px' }}>
-        <p style={{ color: 'red' }}>錯誤：{error}</p>
-        <button onClick={() => window.liff.closeWindow()}>關閉</button>
+      <div style={{ padding: '20px', fontFamily: 'system-ui, sans-serif' }}>
+        <h2>❌ 錯誤</h2>
+        <p style={{ color: 'red' }}>{error}</p>
+        <p style={{ marginTop: '20px', fontSize: '14px', color: '#666' }}>
+          請在 Vercel 環境變數設定：
+          <br/>
+          <code>NEXT_PUBLIC_LIFF_ID</code> = 你的 LIFF ID
+        </p>
+        {window.liff && (
+          <button 
+            onClick={() => window.liff.closeWindow()}
+            style={{ marginTop: '20px', padding: '10px 20px' }}
+          >
+            關閉
+          </button>
+        )}
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h1>歡迎使用旅遊小幫手！</h1>
+    <div style={{ padding: '20px', fontFamily: 'system-ui, sans-serif' }}>
+      <h1>🎒 旅遊小幫手</h1>
       {profile && <p>Hello, {profile.displayName}!</p>}
       <p>正在跳轉...</p>
     </div>
