@@ -72,7 +72,7 @@ async function getExpenses(groupId: string, response: VercelResponse) {
     return response.status(500).json({ error: error.message });
   }
 
-  return response.status(200).json(data);
+  return response.status(200).json(data || []);
 }
 
 // 取得分帳結算
@@ -83,6 +83,11 @@ async function getSettlements(groupId: string, response: VercelResponse) {
 
   if (error) {
     return response.status(500).json({ error: error.message });
+  }
+
+  // 如果沒有結算資料，回傳空陣列
+  if (!data || data.length === 0) {
+    return response.status(200).json([]);
   }
 
   // 取得用戶資訊

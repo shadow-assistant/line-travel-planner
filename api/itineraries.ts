@@ -68,7 +68,7 @@ async function getItineraries(groupId: string, response: VercelResponse) {
     return response.status(500).json({ error: error.message });
   }
 
-  return response.status(200).json(data);
+  return response.status(200).json(data || []);
 }
 
 // 新增行程
