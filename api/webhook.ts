@@ -8,7 +8,7 @@ const lineClient = new Client({
   channelSecret: process.env.LINE_CHANNEL_SECRET!
 });
 
-// 初始化 Supabase (使用 service role key 進行管理操作)
+// 初始化 Supabase
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -26,8 +26,17 @@ export default async function handler(
 ) {
   // 設定 CORS
   response.setHeader('Access-Control-Allow-Origin', '*');
-  response.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  response.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   response.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-line-signature');
+
+  // LINE Webhook 驗證 (GET 請求)
+  if (request.method === 'GET') {
+    const challenge = request.query.challenge;
+    if (challenge) {
+      return response.status(200).send(challenge);
+    }
+    return response.status(200).send('LINE Webhook is working!');
+  }
 
   if (request.method === 'OPTIONS') {
     return response.status(200).end();
@@ -38,15 +47,6 @@ export default async function handler(
   }
 
   try {
-    // 驗證 LINE Signature
-    const signature = request.headers['x-line-signature'] as string;
-    const bodyString = JSON.stringify(request.body);
-
-    // 簡化驗證 (生產環境應該用原始 body)
-    if (!signature) {
-      console.warn('No signature provided');
-    }
-
     const events = request.body.events || [];
     
     for (const event of events) {
@@ -79,7 +79,6 @@ async function handleTextMessage(event: any) {
 
   if (!replyToken) return;
 
-  // 取得用戶資訊
   let profile;
   try {
     profile = await lineClient.getProfile(userId);
@@ -87,7 +86,6 @@ async function handleTextMessage(event: any) {
     profile = { displayName: 'User' };
   }
 
-  // 自動建立群組記錄（如果不存在）
   if (groupId) {
     const { data: existingGroup } = await supabase
       .from('groups')
@@ -103,7 +101,6 @@ async function handleTextMessage(event: any) {
     }
   }
 
-  // 指令處理
   const command = text.trim().toLowerCase();
   const liffUrl = process.env.LIFF_URL || 'https://your-app.vercel.app/liff';
 
@@ -147,13 +144,11 @@ async function handleGroupJoin(event: any) {
   const groupId = event.source.groupId;
   const liffUrl = process.env.LIFF_URL || 'https://your-app.vercel.app/liff';
 
-  // 建立群組記錄
   await supabase.from('groups').upsert({
     line_group_id: groupId,
     name: `Group ${groupId?.slice(0, 8) || 'Unknown'}`
   }, { onConflict: 'line_group_id' });
 
-  // 發送歡迎訊息
   await lineClient.replyMessage(event.replyToken, {
     type: 'text',
     text: `🎉 旅遊小幫手上線！
