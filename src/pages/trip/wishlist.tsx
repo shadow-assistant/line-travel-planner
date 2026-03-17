@@ -16,6 +16,7 @@ interface WishlistItem {
   phone: string;
   category: string;
   votes: number;
+  must_go_count: number;
   user_vote?: string;
 }
 
@@ -29,6 +30,8 @@ export default function WishlistPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
+  const [manualMode, setManualMode] = useState(false);
+  const [manualPlace, setManualPlace] = useState({ title: '', location: '', description: '' });
 
   const gId = Array.isArray(groupId) ? groupId[0] : (groupId || '');
 
@@ -55,36 +58,52 @@ export default function WishlistPage() {
     if (!searchQuery.trim()) return;
     setSearching(true);
 
+    // 如果沒有 API Key，切換到手動輸入模式
+    if (!GOOGLE_MAPS_API_KEY) {
+      setManualMode(true);
+      setSearching(false);
+      return;
+    }
+
     try {
-      // 使用 Google Places API (需要 API Key)
       const res = await fetch(
-        `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(searchQuery)}&key=${GOOGLE_MAPS_API_KEY}`
+        `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(searchQuery)}&language=zh-TW&key=${GOOGLE_MAPS_API_KEY}`
       );
       const data = await res.json();
       
-      if (data.results) {
+      if (data.results && data.results.length > 0) {
         setSearchResults(data.results.slice(0, 5));
+      } else {
+        // 沒有結果，切換到手動模式
+        setManualPlace({ ...manualPlace, title: searchQuery });
+        setManualMode(true);
       }
     } catch (err) {
       console.error('Search error:', err);
+      setManualMode(true);
     } finally {
       setSearching(false);
     }
   };
 
   const addToWishlist = async (place: any) => {
+    if (!gId) return;
+
+    let photoUrl = null;
+    if (place.photos && place.photos[0]) {
+      photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${place.photos[0].photo_reference}&key=${GOOGLE_MAPS_API_KEY}`;
+    }
+
     try {
       const newItem = {
         group_id: gId,
         title: place.name,
         description: '',
         location: place.formatted_address || place.vicinity,
-        latitude: place.geometry.location.lat,
-        longitude: place.geometry.location.lng,
+        latitude: place.geometry?.location?.lat,
+        longitude: place.geometry?.location?.lng,
         place_id: place.place_id,
-        photo_url: place.photos?.[0]?.photo_reference 
-          ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${place.photos[0].photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
-          : null,
+        photo_url: photoUrl,
         rating: place.rating || 0,
         website: '',
         phone: '',
@@ -100,6 +119,42 @@ export default function WishlistPage() {
       if (res.ok) {
         fetchWishlist(gId);
         setSearchResults([]);
+        setSearchQuery('');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const addManualPlace = async () => {
+    if (!gId || !manualPlace.title) return;
+
+    try {
+      const newItem = {
+        group_id: gId,
+        title: manualPlace.title,
+        description: manualPlace.description,
+        location: manualPlace.location,
+        latitude: null,
+        longitude: null,
+        place_id: null,
+        photo_url: null,
+        rating: 0,
+        website: '',
+        phone: '',
+        category: '景點',
+      };
+
+      const res = await fetch('/api/wishlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newItem),
+      });
+
+      if (res.ok) {
+        fetchWishlist(gId);
+        setManualPlace({ title: '', location: '', description: '' });
+        setManualMode(false);
         setSearchQuery('');
       }
     } catch (err) {
@@ -128,7 +183,7 @@ export default function WishlistPage() {
         {/* 標題 */}
         <div style={styles.header}>
           <h1 style={styles.title}>🎯 許願池</h1>
-          <p style={styles.subtitle}>搜尋景點並投票決定要去哪裡！</p>
+          <p style={styles.subtitle}>搜尋景點或手動新增大家一起投票！</p>
         </div>
 
         {/* 搜尋框 */}
@@ -145,6 +200,48 @@ export default function WishlistPage() {
             {searching ? '搜尋中...' : '搜尋'}
           </button>
         </div>
+
+        {/* API Key 提示 */}
+        {!GOOGLE_MAPS_API_KEY && (
+          <div style={styles.apiHint}>
+            ⚠️ 未設定 Google Maps API Key，僅能手動新增景點
+          </div>
+        )}
+
+        {/* 手動輸入模式 */}
+        {manualMode && (
+          <div style={styles.manualForm}>
+            <h3 style={styles.manualTitle}>➕ 手動新增景點</h3>
+            <input
+              type="text"
+              placeholder="景點名稱 *"
+              value={manualPlace.title}
+              onChange={(e) => setManualPlace({ ...manualPlace, title: e.target.value })}
+              style={styles.input}
+            />
+            <input
+              type="text"
+              placeholder="地址"
+              value={manualPlace.location}
+              onChange={(e) => setManualPlace({ ...manualPlace, location: e.target.value })}
+              style={styles.input}
+            />
+            <textarea
+              placeholder="描述 (可選)"
+              value={manualPlace.description}
+              onChange={(e) => setManualPlace({ ...manualPlace, description: e.target.value })}
+              style={styles.textarea}
+            />
+            <div style={styles.manualButtons}>
+              <button onClick={() => setManualMode(false)} style={styles.cancelButton}>
+                取消
+              </button>
+              <button onClick={addManualPlace} style={styles.addButton}>
+                新增至許願池
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* 搜尋結果 */}
         {searchResults.length > 0 && (
@@ -175,14 +272,14 @@ export default function WishlistPage() {
             <div style={styles.empty}>
               <span style={styles.emptyIcon}>🎯</span>
               <p>許願池是空的</p>
-              <p style={styles.emptyHint}>搜尋景點加入許願池</p>
+              <p style={styles.emptyHint}>搜尋景點或手動新增</p>
             </div>
           ) : (
             sortedWishlist.map((item) => (
               <div key={item.id} style={styles.card}>
                 {item.photo_url && (
                   <div style={styles.cardImage}>
-                    <img src={item.photo_url} alt={item.title} style={styles.image} />
+                    <img src={item.photo_url} alt={item.title} style={styles.image} onError={(e) => {e.currentTarget.style.display = 'none'}} />
                     <span style={styles.category}>{item.category}</span>
                   </div>
                 )}
@@ -209,13 +306,7 @@ export default function WishlistPage() {
                         ...(item.user_vote === 'must_go' ? styles.voteButtonMustGo : {}),
                       }}
                     >
-                      🏆 想去
-                    </button>
-                    <button 
-                      onClick={() => vote(item.id, 'skip')}
-                      style={styles.voteButtonSkip}
-                    >
-                      👎
+                      🏆 想去 {item.must_go_count || 0}
                     </button>
                   </div>
                 </div>
@@ -223,14 +314,6 @@ export default function WishlistPage() {
             ))
           )}
         </div>
-
-        {/* API Key 提示 */}
-        {!GOOGLE_MAPS_API_KEY && (
-          <div style={styles.apiHint}>
-            <p>⚠️ Google Maps API Key 未設定</p>
-            <p style={styles.apiHintText}>請在 Vercel 設定 NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</p>
-          </div>
-        )}
       </div>
     </Layout>
   );
@@ -256,6 +339,7 @@ const styles: any = {
   subtitle: {
     color: '#666',
     marginTop: '8px',
+    fontSize: '14px',
   },
   searchBox: {
     display: 'flex',
@@ -275,6 +359,66 @@ const styles: any = {
     color: '#fff',
     border: 'none',
     borderRadius: '12px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+  },
+  apiHint: {
+    textAlign: 'center',
+    padding: '10px',
+    backgroundColor: '#fff3e0',
+    borderRadius: '10px',
+    fontSize: '13px',
+    color: '#f57c00',
+  },
+  manualForm: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    padding: '16px',
+    backgroundColor: '#fff',
+    borderRadius: '16px',
+    boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+  },
+  manualTitle: {
+    fontSize: '16px',
+    fontWeight: '600',
+    margin: 0,
+  },
+  input: {
+    padding: '12px',
+    border: '2px solid #e0e0e0',
+    borderRadius: '10px',
+    fontSize: '14px',
+  },
+  textarea: {
+    padding: '12px',
+    border: '2px solid #e0e0e0',
+    borderRadius: '10px',
+    fontSize: '14px',
+    minHeight: '60px',
+    resize: 'vertical',
+  },
+  manualButtons: {
+    display: 'flex',
+    gap: '10px',
+  },
+  cancelButton: {
+    flex: 1,
+    padding: '12px',
+    backgroundColor: '#f5f5f5',
+    border: 'none',
+    borderRadius: '10px',
+    fontSize: '14px',
+    cursor: 'pointer',
+  },
+  addButton: {
+    flex: 1,
+    padding: '12px',
+    backgroundColor: '#667eea',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '10px',
     fontSize: '14px',
     fontWeight: '600',
     cursor: 'pointer',
@@ -313,15 +457,6 @@ const styles: any = {
     fontSize: '12px',
     color: '#f5a623',
   },
-  addButton: {
-    padding: '8px 16px',
-    backgroundColor: '#667eea',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '12px',
-    cursor: 'pointer',
-  },
   list: {
     display: 'flex',
     flexDirection: 'column',
@@ -355,6 +490,7 @@ const styles: any = {
     position: 'relative',
     height: '150px',
     overflow: 'hidden',
+    backgroundColor: '#f5f5f5',
   },
   image: {
     width: '100%',
@@ -411,25 +547,5 @@ const styles: any = {
   voteButtonMustGo: {
     backgroundColor: '#f5a623',
     color: '#fff',
-  },
-  voteButtonSkip: {
-    flex: '0 0 40px',
-    padding: '10px',
-    backgroundColor: '#f5f5f5',
-    border: 'none',
-    borderRadius: '10px',
-    fontSize: '14px',
-    cursor: 'pointer',
-  },
-  apiHint: {
-    textAlign: 'center',
-    padding: '16px',
-    backgroundColor: '#fff3e0',
-    borderRadius: '12px',
-    color: '#666',
-  },
-  apiHintText: {
-    fontSize: '12px',
-    marginTop: '4px',
   },
 };

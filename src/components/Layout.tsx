@@ -1,5 +1,5 @@
 // src/components/Layout.tsx
-import { useState, useEffect, ReactNode } from 'react';
+import { ReactNode } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 
@@ -17,13 +17,12 @@ declare global {
 
 export default function Layout({ children, activeTab, groupId }: LayoutProps) {
   const router = useRouter();
-  const [profile, setProfile] = useState<any>(null);
   const gId = Array.isArray(groupId) ? groupId[0] : groupId;
 
   const tabs = [
-    { id: 'dashboard', label: '儀表板', icon: '📊', path: `/trip?groupId=${gId}` },
+    { id: 'trips', label: '旅程', icon: '🧳', path: `/trip?groupId=${gId}` },
+    { id: 'dashboard', label: '儀表板', icon: '📊', path: `/trip/dashboard?groupId=${gId}` },
     { id: 'wishlist', label: '許願池', icon: '🎯', path: `/trip/wishlist?groupId=${gId}` },
-    { id: 'itinerary', label: '行程', icon: '📋', path: `/trip/itinerary?groupId=${gId}` },
     { id: 'expenses', label: '分帳', icon: '💰', path: `/trip/expenses?groupId=${gId}` },
   ];
 
@@ -34,14 +33,7 @@ export default function Layout({ children, activeTab, groupId }: LayoutProps) {
         <div style={styles.logo}>
           <span style={styles.logoIcon}>🧩</span>
           <span style={styles.logoText}>Puzzle Trip</span>
-          <span style={styles.logoSub}>拼圖遊</span>
         </div>
-        {profile && (
-          <div style={styles.userInfo}>
-            <img src={profile.pictureUrl || '/default-avatar.png'} alt="" style={styles.avatar} />
-            <span style={styles.userName}>{profile.displayName}</span>
-          </div>
-        )}
       </header>
 
       {/* Content */}
@@ -76,6 +68,7 @@ const styles: any = {
     flexDirection: 'column',
     backgroundColor: '#f8f9fa',
     fontFamily: '"Noto Sans TC", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    paddingBottom: '80px',
   },
   header: {
     display: 'flex',
@@ -103,29 +96,9 @@ const styles: any = {
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
   },
-  logoSub: {
-    fontSize: '14px',
-    color: '#a0a0a0',
-    fontWeight: '400',
-  },
-  userInfo: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  },
-  avatar: {
-    width: '32px',
-    height: '32px',
-    borderRadius: '50%',
-    objectFit: 'cover',
-  },
-  userName: {
-    fontSize: '14px',
-  },
   main: {
     flex: 1,
     padding: '20px',
-    paddingBottom: '100px',
     maxWidth: '800px',
     margin: '0 auto',
     width: '100%',
@@ -133,7 +106,7 @@ const styles: any = {
   nav: {
     display: 'flex',
     justifyContent: 'space-around',
-    padding: '12px 10px',
+    padding: '10px 8px',
     backgroundColor: '#fff',
     borderTop: '1px solid #e0e0e0',
     position: 'fixed',
@@ -149,7 +122,7 @@ const styles: any = {
     alignItems: 'center',
     textDecoration: 'none',
     color: '#8e8e93',
-    padding: '8px 16px',
+    padding: '6px 12px',
     borderRadius: '12px',
     transition: 'all 0.2s ease',
   },
@@ -158,11 +131,11 @@ const styles: any = {
     backgroundColor: 'rgba(102, 126, 234, 0.1)',
   },
   navIcon: {
-    fontSize: '24px',
-    marginBottom: '4px',
+    fontSize: '22px',
+    marginBottom: '2px',
   },
   navLabel: {
-    fontSize: '12px',
+    fontSize: '11px',
     fontWeight: '500',
   },
 };

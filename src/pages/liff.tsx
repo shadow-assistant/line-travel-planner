@@ -44,23 +44,34 @@ export default function LiffPage() {
 
       // 解析 URL 參數
       const urlParams = new URLSearchParams(window.location.search);
-      const action = urlParams.get('action') || 'home';
+      const action = urlParams.get('action') || 'trips';
       const groupId = urlParams.get('groupId');
+      const tripId = urlParams.get('tripId');
 
       // 根據 action 導向不同頁面
       if (groupId) {
         localStorage.setItem('currentGroupId', groupId);
       }
+      if (tripId) {
+        localStorage.setItem('currentTripId', tripId);
+      }
 
       switch (action) {
+        case 'dashboard':
+          router.push(`/trip/dashboard?groupId=${groupId}&tripId=${tripId}`);
+          break;
+        case 'wishlist':
+          router.push(`/trip/wishlist?groupId=${groupId}&tripId=${tripId}`);
+          break;
         case 'itinerary':
-          router.push(`/trip?groupId=${groupId}`);
+          router.push(`/trip/itinerary?groupId=${groupId}&tripId=${tripId}`);
           break;
         case 'expenses':
-          router.push(`/trip/expenses?groupId=${groupId}`);
+          router.push(`/trip/expenses?groupId=${groupId}&tripId=${tripId}`);
           break;
+        case 'trips':
         default:
-          router.push('/trip');
+          router.push(`/trip?groupId=${groupId}`);
       }
     } catch (err: any) {
       console.error('LIFF init error:', err);
@@ -87,39 +98,86 @@ export default function LiffPage() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', fontFamily: 'system-ui, sans-serif' }}>
-        <p>載入中...</p>
+      <div style={styles.container}>
+        <div style={styles.loading}>
+          <p>🧩 Puzzle Trip</p>
+          <p>載入中...</p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={{ padding: '20px', fontFamily: 'system-ui, sans-serif' }}>
-        <h2>❌ 錯誤</h2>
-        <p style={{ color: 'red' }}>{error}</p>
-        <p style={{ marginTop: '20px', fontSize: '14px', color: '#666' }}>
-          請在 Vercel 環境變數設定：
-          <br/>
-          <code>NEXT_PUBLIC_LIFF_ID</code> = 你的 LIFF ID
-        </p>
-        {window.liff && (
-          <button 
-            onClick={() => window.liff.closeWindow()}
-            style={{ marginTop: '20px', padding: '10px 20px' }}
-          >
-            關閉
-          </button>
-        )}
+      <div style={styles.container}>
+        <div style={styles.error}>
+          <h2>❌ 錯誤</h2>
+          <p>{error}</p>
+          <p style={styles.hint}>
+            請在 Vercel 環境變數設定：
+            <br/>
+            <code>NEXT_PUBLIC_LIFF_ID</code>
+          </p>
+          {window.liff && (
+            <button onClick={() => window.liff.closeWindow()} style={styles.button}>
+              關閉
+            </button>
+          )}
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'system-ui, sans-serif' }}>
-      <h1>🎒 旅遊小幫手</h1>
-      {profile && <p>Hello, {profile.displayName}!</p>}
-      <p>正在跳轉...</p>
+    <div style={styles.container}>
+      <div style={styles.welcome}>
+        <h1>🧩 Puzzle Trip</h1>
+        <p>拼圖遊 - 讓旅行像玩拼圖一樣簡單</p>
+        {profile && <p>Hello, {profile.displayName}!</p>}
+        <p>正在跳轉...</p>
+      </div>
     </div>
   );
 }
+
+const styles: any = {
+  container: {
+    minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontFamily: '"Noto Sans TC", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    backgroundColor: '#f8f9fa',
+  },
+  loading: {
+    textAlign: 'center',
+    padding: '40px',
+  },
+  error: {
+    textAlign: 'center',
+    padding: '40px',
+    maxWidth: '300px',
+  },
+  hint: {
+    marginTop: '20px',
+    fontSize: '12px',
+    color: '#666',
+  },
+  button: {
+    marginTop: '20px',
+    padding: '12px 24px',
+    backgroundColor: '#667eea',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+  },
+  welcome: {
+    textAlign: 'center',
+    padding: '40px',
+    backgroundColor: '#fff',
+    borderRadius: '20px',
+    margin: '20px',
+    boxShadow: '0 2px 20px rgba(0,0,0,0.1)',
+  },
+};
